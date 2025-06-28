@@ -1,0 +1,5 @@
+2025-06-28  Tim <tim@metaverse.systems>
+
+	* Version 0.1 - Initial release
+	* Implemented PKCE (RFC 7636) OAuth 2.0 flow
+	* Added support for multiple OAuth providers

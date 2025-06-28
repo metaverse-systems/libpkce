@@ -107,6 +107,10 @@ std::string challenge = generate_code_challenge(verifier);
 // Create callback server
 CallbackServer server(5999);
 
+// Open the login url and approve login
+
+// User is redirected to callback server with authorization code as a query parameter
+
 // Exchange authorization code for tokens
 TokenResponse tokens;
 bool success = exchange_token(
