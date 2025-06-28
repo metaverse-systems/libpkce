@@ -1,0 +1,7 @@
+# libpkce News
+
+## Version 0.1 - June 28, 2025
+
+### Initial Release
+
+This is the first public release of libpkce, a cross-platform C++ library for implementing PKCE (Proof Key for Code Exchange) OAuth 2.0 authentication flow.
