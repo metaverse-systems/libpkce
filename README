@@ -1,0 +1,178 @@
+# libpkce
+
+A cross-platform C++ library for implementing PKCE (Proof Key for Code Exchange) OAuth 2.0 authentication flow.
+
+## Overview
+
+libpkce provides a complete implementation of the OAuth 2.0 PKCE flow, designed to be platform agnostic and easy to integrate into C++ applications. It handles the secure generation of code verifiers and challenges, manages the OAuth callback server, and facilitates token exchange.
+
+## Features
+
+- **PKCE Implementation**: Full support for RFC 7636 (Proof Key for Code Exchange)
+- **Cross-Platform**: Works on Linux, macOS, and Windows
+- **Secure**: Uses OpenSSL for cryptographic operations
+- **Easy Integration**: Simple C++ API with minimal dependencies
+- **Configurable**: JSON-based configuration system
+- **Token Management**: Complete OAuth 2.0 token exchange handling
+
+## Dependencies
+
+- **OpenSSL** (>= 1.1.0): For cryptographic operations
+- **cpp-httplib**: For HTTP server and client functionality
+- **nlohmann/json**: For JSON parsing (included as header-only)
+
+## Building
+
+### Prerequisites
+
+Make sure you have the required dependencies installed:
+
+#### Ubuntu/Debian
+```bash
+sudo apt-get install libssl-dev libcpp-httplib-dev pkg-config build-essential autotools-dev autoconf libtool
+```
+
+#### macOS (with Homebrew)
+```bash
+brew install openssl cpp-httplib pkg-config autoconf automake libtool
+```
+
+#### Windows (with vcpkg)
+```bash
+vcpkg install openssl cpp-httplib
+```
+
+### Build Steps
+
+```bash
+# Clone the repository
+git clone <repository-url>
+cd libpkce
+
+# Generate build system
+./autogen.sh
+
+# Configure
+./configure
+
+# Build
+make
+
+# Install (optional)
+sudo make install
+```
+
+## Usage
+
+### Configuration
+
+Create a configuration file (e.g., `config.json`) based on the example:
+
+```json
+{
+  "login_url": "https://login.microsoftonline.com/{tenant_id}/oauth2/v2.0/authorize?client_id={client_id}&response_type=code&redirect_uri={redirect_uri}&scope={scope}&code_challenge={code_challenge}&code_challenge_method=S256",
+  "tenant_id": "your-tenant-id",
+  "client_id": "your-client-id",
+  "redirect_uri": "http://localhost:5999",
+  "scope": "openid profile offline_access",
+  "server_port": 5999,
+  "timeout_seconds": 300
+}
+```
+
+### Command Line Usage
+
+```bash
+# Run with default config file (config.json)
+./pkce
+
+# Run with custom config file
+./pkce path/to/your/config.json
+```
+
+### Library API
+
+```cpp
+#include "generate_code_verifier.hpp"
+#include "generate_code_challenge.hpp"
+#include "server.hpp"
+#include "exchange_token.hpp"
+
+// Generate PKCE code verifier
+std::string verifier = generate_code_verifier(64);
+
+// Generate code challenge from verifier
+std::string challenge = generate_code_challenge(verifier);
+
+// Create callback server
+CallbackServer server(5999);
+
+// Exchange authorization code for tokens
+TokenResponse tokens;
+bool success = exchange_token(
+    token_url,
+    client_id, 
+    auth_code,
+    redirect_uri,
+    verifier,
+    tokens
+);
+```
+
+## How It Works
+
+1. **Code Generation**: Generates a cryptographically secure code verifier and derives the code challenge using SHA256
+2. **Authorization URL**: Constructs the OAuth authorization URL with PKCE parameters
+3. **Callback Server**: Starts a local HTTP server to receive the authorization callback
+4. **Browser Launch**: Opens the authorization URL in the default browser
+5. **Code Reception**: Captures the authorization code from the OAuth callback
+6. **Token Exchange**: Exchanges the authorization code for access tokens using the code verifier
+
+## Security Features
+
+- Uses cryptographically secure random number generation
+- Implements SHA256-based code challenge method (S256)
+- Base64URL encoding compliant with RFC 4648
+- Secure token storage and handling
+
+## Platform Support
+
+- **Linux**: Full support with xdg-open for browser launching
+- **macOS**: Full support with open command for browser launching  
+- **Windows**: Full support with start command for browser launching
+
+## Configuration Options
+
+| Parameter | Description | Default |
+|-----------|-------------|---------|
+| `tenant_id` | OAuth tenant identifier | Required |
+| `client_id` | OAuth client identifier | Required |
+| `redirect_uri` | OAuth callback URI | `http://localhost:5999` |
+| `scope` | OAuth scopes | `openid profile offline_access` |
+| `server_port` | Local callback server port | `5999` |
+| `timeout_seconds` | Authentication timeout | `300` |
+
+## Error Handling
+
+The library provides comprehensive error handling for:
+- Network connectivity issues
+- Invalid configuration parameters
+- Authentication timeouts
+- Token exchange failures
+- Server binding errors
+
+## License
+
+This project is licensed under the MIT License - see the COPYING file for details.
+
+## Contributing
+
+Contributions are welcome! Please ensure all code follows the existing style and includes appropriate tests.
+
+## Support
+
+For issues and questions, please visit: https://github.com/metaverse-systems/libpkce
+
+## Version
+
+Current version: 0.1

@@ -1,0 +1,11 @@
+prefix=@prefix@
+exec_prefix=@exec_prefix@
+libdir=@libdir@
+includedir=@includedir@
+ 
+Name: @PACKAGE_NAME@
+Description: https://metaverse.systems
+Version: @PACKAGE_VERSION@
+Libs: -L${libdir} -llibpkce
+Cflags: -I${includedir}
+Requires:
