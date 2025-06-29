@@ -9,7 +9,7 @@ libpkce provides a complete implementation of the OAuth 2.0 PKCE flow, designed 
 ## Features
 
 - **PKCE Implementation**: Full support for RFC 7636 (Proof Key for Code Exchange)
-- **Cross-Platform**: Works on Linux, macOS, and Windows
+- **Cross-Platform**: Works on Linux and Windows
 - **Secure**: Uses OpenSSL for cryptographic operations
 - **Easy Integration**: Simple C++ API with minimal dependencies
 - **Configurable**: JSON-based configuration system
@@ -17,9 +17,7 @@ libpkce provides a complete implementation of the OAuth 2.0 PKCE flow, designed 
 
 ## Dependencies
 
-- **OpenSSL** (>= 1.1.0): For cryptographic operations
-- **cpp-httplib**: For HTTP server and client functionality
-- **nlohmann/json**: For JSON parsing (included as header-only)
+- **OpenSSL** (>= 3.0.0): For cryptographic operations
 
 ## Building
 
@@ -29,17 +27,13 @@ Make sure you have the required dependencies installed:
 
 #### Ubuntu/Debian
 ```bash
-sudo apt-get install libssl-dev libcpp-httplib-dev pkg-config build-essential autotools-dev autoconf libtool
+sudo apt-get install libssl-dev pkg-config build-essential autotools-dev autoconf libtool
 ```
 
-#### macOS (with Homebrew)
-```bash
-brew install openssl cpp-httplib pkg-config autoconf automake libtool
-```
 
 #### Windows (with vcpkg)
 ```bash
-vcpkg install openssl cpp-httplib
+vcpkg install openssl
 ```
 
 ### Build Steps
@@ -53,7 +47,11 @@ cd libpkce
 ./autogen.sh
 
 # Configure
+For Linux:
 ./configure
+
+or Windows:
+./configure --host=x86_64-w64-mingw32 --prefix=/usr/x86_64-w64-mingw32
 
 # Build
 make
@@ -141,9 +139,7 @@ bool success = exchange_token(
 
 ## Platform Support
 
-- **Linux**: Full support with xdg-open for browser launching
-- **macOS**: Full support with open command for browser launching  
-- **Windows**: Full support with start command for browser launching
+Linux and Windows
 
 ## Configuration Options
 

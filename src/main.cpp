@@ -97,12 +97,20 @@ int main(int argc, char *argv[])
     std::cout << config.login_url << std::endl;
     std::cout << std::endl;
     // Call XDG_OPEN or equivalent to open the URL in the default browser
+    std::string command;
     #ifdef _WIN32
-        std::string command = "start \"" + config.login_url + "\"";
+        // Check if running under Wine
+        if (getenv("WINEPREFIX") != nullptr || getenv("WINEDEBUG") != nullptr) {
+            // Running under Wine, use winebrowser
+            command = "winebrowser \"" + config.login_url + "\"";
+        } else {
+            // Native Windows
+            command = "start \"" + config.login_url + "\"";
+        }
     #elif __APPLE__
-        std::string command = "open \"" + config.login_url + "\"";
+        command = "open \"" + config.login_url + "\"";
     #else // Assume Linux or Unix
-        std::string command = "xdg-open \"" + config.login_url + "\"";
+        command = "xdg-open \"" + config.login_url + "\"";
     #endif
     std::system(command.c_str());
     

@@ -10,7 +10,6 @@ PKG_PROG_PKG_CONFIG
 PKG_INSTALLDIR
 
 PKG_CHECK_MODULES([OPENSSL], [openssl >= 3.0.0])
-# PKG_CHECK_MODULES([HTTPLIB], [cpp-httplib])
 
 # Check for Windows and add socket libraries
 case $host_os in
