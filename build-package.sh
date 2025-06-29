@@ -9,7 +9,8 @@ echo "Building libpkce Debian package..."
 echo "Cleaning previous builds..."
 make distclean || true
 rm -rf debian/tmp debian/.debhelper debian/files
-rm -rf debian/libpkce0* debian/libpkce-dev* debian/pkce-tools*
+rm -rf debian/libpkce0/ debian/libpkce-dev/ debian/pkce-tools/
+rm -f debian/debhelper-build-stamp
 
 # Regenerate build system
 echo "Regenerating build system..."
