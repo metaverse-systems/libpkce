@@ -8,7 +8,8 @@ libpkceinclude_HEADERS = ../include/libpkce/generate_code_verifier.hpp \
     ../include/libpkce/generate_code_challenge.hpp \
     ../include/libpkce/exchange_token.hpp \
     ../include/libpkce/CallbackServer.hpp \
-    ../include/libpkce/json.hpp
+    ../include/libpkce/json.hpp \
+    ../include/libpkce/token_utils.hpp
 
 libpkce_la_SOURCES = generate_code_verifier.cpp generate_code_challenge.cpp CallbackServer.cpp exchange_token.cpp token_utils.cpp
 libpkce_la_LIBADD = ${OPENSSL_LIBS} ${SOCKET_LIBS}
