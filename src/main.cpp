@@ -8,9 +8,9 @@
 #include <libpkce/exchange_token.hpp>
 #include <libpkce/json.hpp>
 #include <libpkce/httplib.h>
+#include <libpkce/token_utils.hpp>
 #include <jwt-cpp/jwt.h>
 #include "Config.hpp"
-#include "token_utils.hpp"
 
 int main(int argc, char *argv[])
 {

@@ -1,9 +1,9 @@
+#define CPPHTTPLIB_OPENSSL_SUPPORT
 #include <iostream>
 #include <libpkce/json.hpp>
-#define CPPHTTPLIB_OPENSSL_SUPPORT
 #include <libpkce/httplib.h>
+#include <libpkce/token_utils.hpp>
 #include <jwt-cpp/jwt.h>
-#include "token_utils.hpp"
 
 std::string base64url_decode(const std::string &input)
 {
