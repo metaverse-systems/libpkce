@@ -57,3 +57,39 @@ libtool
 dist
 node_modules
 *.pc
+
+# Debian packaging artifacts
+debian/tmp/
+debian/.debhelper/
+debian/files
+debian/debhelper-build-stamp
+debian/autoreconf.before
+debian/autoreconf.after
+debian/libpkce0/
+debian/libpkce-dev/
+debian/pkce-tools/
+debian/*.debhelper.log
+debian/*.substvars
+*.deb
+*.buildinfo
+*.changes
+*.dsc
+*.orig.tar.*
+
+# Build artifacts
+build/
+*.exe
+*.dll
+pkce
+src/pkce
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
