@@ -10,134 +10,7 @@
 #include <libpkce/httplib.h>
 #include <jwt-cpp/jwt.h>
 #include "Config.hpp"
-
-void dump_token(std::string token)
-{
-    try {
-        auto decoded = jwt::decode(token);
-        auto payload_json = decoded.get_payload_json();
-        for (const auto &part : payload_json) {
-            std::cout << part.first << ": " << part.second.to_str() << std::endl;
-        }
-    } catch (const std::exception& e) {
-        std::cerr << "Error decoding JWT token: " << e.what() << std::endl;
-    }
-}
-
-bool verify_jwt_signature(const std::string &token, const std::string &jwks_url)
-{
-    try {
-        // Parse the JWT token to get the header
-        auto decoded = jwt::decode(token);
-        auto header = decoded.get_header_json();
-        
-        // Extract key ID (kid) from header
-        std::string kid;
-        if (header.count("kid")) {
-            kid = header["kid"].to_str();
-        }
-        
-        // Extract algorithm from header
-        std::string alg;
-        if (header.count("alg")) {
-            alg = header["alg"].to_str();
-        }
-        
-        // Parse JWKS URL to get host and path
-        std::string host, path;
-        size_t protocol_pos = jwks_url.find("://");
-        if (protocol_pos == std::string::npos) {
-            std::cerr << "Invalid JWKS URL format" << std::endl;
-            return false;
-        }
-        
-        std::string url_without_protocol = jwks_url.substr(protocol_pos + 3);
-        size_t slash_pos = url_without_protocol.find('/');
-        if (slash_pos == std::string::npos) {
-            host = url_without_protocol;
-            path = "/";
-        } else {
-            host = url_without_protocol.substr(0, slash_pos);
-            path = url_without_protocol.substr(slash_pos);
-        }
-        
-        // Fetch JWKS from the URL
-        httplib::Client cli(("https://" + host).c_str());
-        cli.set_connection_timeout(10, 0); // 10 seconds
-        cli.set_read_timeout(10, 0);       // 10 seconds
-        
-        auto res = cli.Get(path.c_str());
-        if (!res || res->status != 200) {
-            std::cerr << "Failed to fetch JWKS from " << jwks_url << std::endl;
-            if (res) {
-                std::cerr << "HTTP Status: " << res->status << std::endl;
-            }
-            return false;
-        }
-        
-        // Parse JWKS JSON
-        nlohmann::json jwks;
-        try {
-            jwks = nlohmann::json::parse(res->body);
-        } catch (const std::exception& e) {
-            std::cerr << "Failed to parse JWKS JSON: " << e.what() << std::endl;
-            return false;
-        }
-        
-        // Find the matching key
-        if (!jwks.contains("keys") || !jwks["keys"].is_array()) {
-            std::cerr << "Invalid JWKS format: missing keys array" << std::endl;
-            return false;
-        }
-        
-        std::string matching_key;
-        for (const auto& key : jwks["keys"]) {
-            // If kid is specified, match by kid, otherwise use the first RSA key
-            if (!kid.empty()) {
-                if (key.contains("kid") && key["kid"].get<std::string>() == kid) {
-                    if (key.contains("x5c") && key["x5c"].is_array() && !key["x5c"].empty()) {
-                        matching_key = key["x5c"][0].get<std::string>();
-                        break;
-                    }
-                }
-            } else {
-                // Use first RSA key if no kid specified
-                if (key.contains("kty") && key["kty"].get<std::string>() == "RSA") {
-                    if (key.contains("x5c") && key["x5c"].is_array() && !key["x5c"].empty()) {
-                        matching_key = key["x5c"][0].get<std::string>();
-                        break;
-                    }
-                }
-            }
-        }
-        
-        if (matching_key.empty()) {
-            std::cerr << "No matching key found in JWKS" << std::endl;
-            return false;
-        }
-        
-        // Convert the X.509 certificate to PEM format
-        std::string cert_pem = "-----BEGIN CERTIFICATE-----\n";
-        for (size_t i = 0; i < matching_key.length(); i += 64) {
-            cert_pem += matching_key.substr(i, 64) + "\n";
-        }
-        cert_pem += "-----END CERTIFICATE-----\n";
-        
-        // Verify the token signature
-        auto verifier = jwt::verify()
-            .allow_algorithm(jwt::algorithm::rs256(cert_pem, "", "", ""));
-        
-        verifier.verify(decoded);
-        return true;
-        
-    } catch (const jwt::error::signature_verification_exception& e) {
-        std::cerr << "JWT signature verification failed: " << e.what() << std::endl;
-        return false;
-    } catch (const std::exception& e) {
-        std::cerr << "Error verifying JWT signature: " << e.what() << std::endl;
-        return false;
-    }
-}
+#include "token_utils.hpp"
 
 int main(int argc, char *argv[])
 {
@@ -260,7 +133,7 @@ int main(int argc, char *argv[])
     }
     else
     {
-        std::cout << "Access Token signature verification failed!" << std::endl;
+        return 1;
     }
 
     return 0;

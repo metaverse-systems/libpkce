@@ -10,7 +10,7 @@ libpkceinclude_HEADERS = ../include/libpkce/generate_code_verifier.hpp \
     ../include/libpkce/CallbackServer.hpp \
     ../include/libpkce/json.hpp
 
-libpkce_la_SOURCES = generate_code_verifier.cpp generate_code_challenge.cpp CallbackServer.cpp exchange_token.cpp
+libpkce_la_SOURCES = generate_code_verifier.cpp generate_code_challenge.cpp CallbackServer.cpp exchange_token.cpp token_utils.cpp
 libpkce_la_LIBADD = ${OPENSSL_LIBS} ${SOCKET_LIBS}
 libpkce_la_CXXFLAGS = -std=c++20 ${OPENSSL_CFLAGS} -I../include
 
