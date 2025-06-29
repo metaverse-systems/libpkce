@@ -1,5 +1,6 @@
+#include "openssl_compat.h"
 #include <string>
-#include <httplib.h>
+#include "httplib.h"
 
 struct TokenResponse {
     std::string access_token;
