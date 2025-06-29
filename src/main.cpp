@@ -11,6 +11,7 @@
 
 struct Config {
     std::string login_url;
+    std::string token_url;
     std::string tenant_id;
     std::string client_id;
     std::string redirect_uri;
@@ -30,6 +31,7 @@ Config load_config(const std::string &config_file) {
 
     Config config;
     config.login_url = json.value("login_url", "");
+    config.token_url = json.value("token_url", "");
     config.tenant_id = json.value("tenant_id", "");
     config.client_id = json.value("client_id", "");
     config.redirect_uri = json.value("redirect_uri", "http://localhost:5999");
@@ -57,6 +59,7 @@ int main(int argc, char *argv[])
         std::cerr << "  \"tenant_id\": \"your-tenant-id\"," << std::endl;
         std::cerr << "  \"client_id\": \"your-client-id\"," << std::endl;
         std::cerr << "  \"login_url\": \"https://login.microsoftonline.com/{tenant_id}/oauth2/v2.0/authorize?client_id={client_id}&response_type=code&redirect_uri={redirect_uri}&scope={scope}&response_mode=query&code_challenge={code_challenge}&code_challenge_method=S256\"," << std::endl;
+        std::cerr << "  \"token_url\": \"https://login.microsoftonline.com/{tenant_id}/oauth2/v2.0/token\"," << std::endl;
         std::cerr << "  \"redirect_uri\": \"http://localhost:5999\"," << std::endl;
         std::cerr << "  \"scope\": \"openid profile offline_access\"," << std::endl;
         std::cerr << "  \"server_port\": 5999," << std::endl;
@@ -83,6 +86,12 @@ int main(int argc, char *argv[])
     config.login_url = std::regex_replace(config.login_url, std::regex("\\{redirect_uri\\}"), config.redirect_uri);
     config.login_url = std::regex_replace(config.login_url, std::regex("\\{scope\\}"), config.scope);
     config.login_url = std::regex_replace(config.login_url, std::regex("\\{code_challenge\\}"), code_challenge);
+    
+    // Also replace templates in token_url
+    if (!config.token_url.empty()) {
+        config.token_url = std::regex_replace(config.token_url, std::regex("\\{tenant_id\\}"), config.tenant_id);
+        config.token_url = std::regex_replace(config.token_url, std::regex("\\{client_id\\}"), config.client_id);
+    }
     
     std::cout << "PKCE OAuth2 Flow Started" << std::endl;
     std::cout << "========================" << std::endl;
@@ -153,9 +162,8 @@ int main(int argc, char *argv[])
         server_thread.join();
     }
     
-    const std::string token_exchange_url = "https://login.microsoftonline.com/" + config.tenant_id;
     TokenResponse token_response;
-    if (exchange_token(token_exchange_url, config.client_id, auth_code, config.redirect_uri, code_verifier, token_response)) {
+    if (exchange_token(config.token_url, config.client_id, auth_code, config.redirect_uri, code_verifier, token_response)) {
         std::cout << std::endl;
         std::cout << "Token exchange successful!" << std::endl;
         dump_token_response(token_response);

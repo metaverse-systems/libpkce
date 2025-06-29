@@ -30,15 +30,15 @@ bool exchange_token(const std::string &token_url,
             path = url_without_scheme.substr(slash_pos);
         } else {
             hostname = url_without_scheme;
-            path = "";
+            path = "/";
         }
     } else {
         hostname = token_url;
-        path = "";
+        path = "/";
     }
     
-    // Construct the full endpoint path
-    std::string endpoint_path = path + "/oauth2/v2.0/token";
+    // Use the path directly from the token_url (no need to append anything)
+    std::string endpoint_path = path;
     
     httplib::SSLClient cli(hostname);
     cli.set_connection_timeout(30, 0); // 30 seconds timeout

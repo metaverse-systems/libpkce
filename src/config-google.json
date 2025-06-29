@@ -1,0 +1,9 @@
+{
+  "client_id": "your-google-client-id",
+  "login_url": "https://accounts.google.com/oauth2/v2/auth?client_id={client_id}&response_type=code&redirect_uri={redirect_uri}&scope={scope}&code_challenge={code_challenge}&code_challenge_method=S256",
+  "token_url": "https://oauth2.googleapis.com/token",
+  "redirect_uri": "http://localhost:5999",
+  "scope": "openid profile email",
+  "server_port": 5999,
+  "timeout_seconds": 300
+}

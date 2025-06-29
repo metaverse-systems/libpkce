@@ -1,0 +1,9 @@
+{
+  "client_id": "your-github-client-id",
+  "login_url": "https://github.com/login/oauth/authorize?client_id={client_id}&redirect_uri={redirect_uri}&scope={scope}&code_challenge={code_challenge}&code_challenge_method=S256",
+  "token_url": "https://github.com/login/oauth/access_token",
+  "redirect_uri": "http://localhost:5999",
+  "scope": "user:email",
+  "server_port": 5999,
+  "timeout_seconds": 300
+}

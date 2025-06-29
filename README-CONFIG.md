@@ -13,6 +13,7 @@ The `pkce` program accepts a JSON configuration file as its first argument. This
 The JSON configuration file should contain the following fields:
 
 - **`login_url`**: The OAuth2 authorization URL template with placeholders
+- **`token_url`**: The OAuth2 token exchange URL template with placeholders
 - **`tenant_id`**: Your OAuth2 provider's tenant ID (GUID format)
 - **`client_id`**: Your OAuth2 application's client ID (GUID format)
 - **`redirect_uri`**: The redirect URI for OAuth callbacks (default: `"http://localhost:5999"`)
@@ -26,6 +27,7 @@ The JSON configuration file should contain the following fields:
 ```json
 {
   "login_url": "https://login.microsoftonline.com/{tenant_id}/oauth2/v2.0/authorize?client_id={client_id}&response_type=code&redirect_uri={redirect_uri}&scope={scope}&response_mode=query&code_challenge={code_challenge}&code_challenge_method=S256",
+  "token_url": "https://login.microsoftonline.com/{tenant_id}/oauth2/v2.0/token",
   "tenant_id": "your-azure-tenant-id",
   "client_id": "your-azure-client-id",
   "redirect_uri": "http://localhost:5999",
@@ -39,6 +41,7 @@ The JSON configuration file should contain the following fields:
 ```json
 {
   "login_url": "https://accounts.google.com/o/oauth2/v2/auth?client_id={client_id}&response_type=code&redirect_uri={redirect_uri}&scope={scope}&code_challenge={code_challenge}&code_challenge_method=S256",
+  "token_url": "https://oauth2.googleapis.com/token",
   "tenant_id": "",
   "client_id": "your-google-client-id.apps.googleusercontent.com",
   "redirect_uri": "http://localhost:5999",
@@ -52,6 +55,7 @@ The JSON configuration file should contain the following fields:
 ```json
 {
   "login_url": "https://github.com/login/oauth/authorize?client_id={client_id}&response_type=code&redirect_uri={redirect_uri}&scope={scope}&code_challenge={code_challenge}&code_challenge_method=S256",
+  "token_url": "https://github.com/login/oauth/access_token",
   "tenant_id": "",
   "client_id": "your-github-client-id",
   "redirect_uri": "http://localhost:5999",
@@ -65,6 +69,7 @@ The JSON configuration file should contain the following fields:
 ```json
 {
   "login_url": "https://your-domain.auth0.com/authorize?client_id={client_id}&response_type=code&redirect_uri={redirect_uri}&scope={scope}&code_challenge={code_challenge}&code_challenge_method=S256",
+  "token_url": "https://your-domain.auth0.com/oauth/token",
   "tenant_id": "",
   "client_id": "your-auth0-client-id",
   "redirect_uri": "http://localhost:5999",
@@ -93,6 +98,12 @@ The JSON configuration file should contain the following fields:
   
   If not provided, you'll need to manually construct the authorization URL. The template should follow your OAuth2 provider's authorization endpoint format.
 
+- **`token_url`**: The OAuth2 token exchange URL template with placeholders that will be automatically replaced:
+  - `{tenant_id}`: Replaced with the tenant_id value
+  - `{client_id}`: Replaced with the client_id value
+  
+  This is the endpoint where the authorization code will be exchanged for access tokens. If not provided, defaults to Microsoft's token endpoint for backward compatibility.
+
 - **`redirect_uri`**: Must match one of the redirect URIs configured in your app registration with your OAuth2 provider. The local server will listen on this URI's port.
 
 - **`scope`**: Controls what permissions your application requests. Scopes vary by provider:
@@ -105,45 +116,75 @@ The JSON configuration file should contain the following fields:
 
 - **`timeout_seconds`**: How long the program will wait for the user to complete the authentication flow in their browser before timing out.
 
-## Login URL Template
+## Login URL and Token URL Templates
 
-The `login_url` field supports template placeholders that are automatically replaced at runtime:
+The `login_url` and `token_url` fields support template placeholders that are automatically replaced at runtime:
 
+**Login URL placeholders:**
 - `{tenant_id}` → Your OAuth2 provider's tenant ID
 - `{client_id}` → Your OAuth2 client ID  
 - `{redirect_uri}` → URL-encoded redirect URI
 - `{scope}` → URL-encoded scope string
 - `{code_challenge}` → Generated PKCE code challenge
 
-This allows you to define a reusable URL template that works across different environments. The program will automatically replace these placeholders with the actual values from your configuration and the generated PKCE parameters.
+**Token URL placeholders:**
+- `{tenant_id}` → Your OAuth2 provider's tenant ID
+- `{client_id}` → Your OAuth2 client ID
 
-### Provider-Specific OAuth2 Templates
+This allows you to define reusable URL templates that work across different environments. The program will automatically replace these placeholders with the actual values from your configuration and the generated PKCE parameters.
+
+### Provider-Specific OAuth2 Endpoints
 
 Different OAuth2 providers use different endpoint formats. Here are common patterns:
 
 #### Microsoft Azure AD / Entra ID
+**Authorization URL:**
 ```
 https://login.microsoftonline.com/{tenant_id}/oauth2/v2.0/authorize?client_id={client_id}&response_type=code&redirect_uri={redirect_uri}&scope={scope}&response_mode=query&code_challenge={code_challenge}&code_challenge_method=S256
 ```
+**Token URL:**
+```
+https://login.microsoftonline.com/{tenant_id}/oauth2/v2.0/token
+```
 
 #### Google OAuth 2.0
+**Authorization URL:**
 ```
 https://accounts.google.com/o/oauth2/v2/auth?client_id={client_id}&response_type=code&redirect_uri={redirect_uri}&scope={scope}&code_challenge={code_challenge}&code_challenge_method=S256
 ```
+**Token URL:**
+```
+https://oauth2.googleapis.com/token
+```
 
 #### GitHub OAuth
+**Authorization URL:**
 ```
 https://github.com/login/oauth/authorize?client_id={client_id}&response_type=code&redirect_uri={redirect_uri}&scope={scope}&code_challenge={code_challenge}&code_challenge_method=S256
 ```
+**Token URL:**
+```
+https://github.com/login/oauth/access_token
+```
 
 #### Auth0
+**Authorization URL:**
 ```
 https://your-domain.auth0.com/authorize?client_id={client_id}&response_type=code&redirect_uri={redirect_uri}&scope={scope}&code_challenge={code_challenge}&code_challenge_method=S256
 ```
+**Token URL:**
+```
+https://your-domain.auth0.com/oauth/token
+```
 
 #### Generic OAuth2 Provider
+**Authorization URL:**
 ```
 https://your-oauth-provider.com/oauth2/authorize?client_id={client_id}&response_type=code&redirect_uri={redirect_uri}&scope={scope}&code_challenge={code_challenge}&code_challenge_method=S256
+```
+**Token URL:**
+```
+https://your-oauth-provider.com/oauth2/token
 ```
 
 ## Error Handling
@@ -152,5 +193,6 @@ The program will display helpful error messages if:
 - The configuration file cannot be found or read
 - Required fields (`tenant_id`, `client_id`) are missing
 - The JSON format is invalid
-- The `login_url` template contains invalid placeholders
+- The `login_url` or `token_url` templates contain invalid placeholders
 - Network errors occur during token exchange
+- Token exchange fails due to invalid credentials or expired authorization codes
