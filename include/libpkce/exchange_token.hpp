@@ -1,4 +1,4 @@
-#include "openssl_compat.h"
+#define CPPHTTPLIB_OPENSSL_SUPPORT
 #include <string>
 #include "httplib.h"
 

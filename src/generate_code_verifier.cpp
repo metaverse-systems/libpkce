@@ -1,5 +1,5 @@
 #include <random>
-#include "generate_code_verifier.hpp"
+#include <libpkce/generate_code_verifier.hpp>
 
 std::string generate_code_verifier(size_t length)
 {

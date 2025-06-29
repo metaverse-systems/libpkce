@@ -4,13 +4,17 @@ bin_PROGRAMS = pkce
 
 # Install headers in libpkce subdirectory
 libpkceincludedir = $(includedir)/libpkce
-libpkceinclude_HEADERS = generate_code_verifier.hpp generate_code_challenge.hpp CallbackServer.hpp exchange_token.hpp
+libpkceinclude_HEADERS = ../include/libpkce/generate_code_verifier.hpp \
+    ../include/libpkce/generate_code_challenge.hpp \
+    ../include/libpkce/exchange_token.hpp \
+    ../include/libpkce/CallbackServer.hpp \
+    ../include/libpkce/json.hpp
 
 libpkce_la_SOURCES = generate_code_verifier.cpp generate_code_challenge.cpp CallbackServer.cpp exchange_token.cpp
 libpkce_la_LIBADD = ${OPENSSL_LIBS} ${SOCKET_LIBS}
-libpkce_la_CXXFLAGS = -std=c++20 ${OPENSSL_CFLAGS}
+libpkce_la_CXXFLAGS = -std=c++20 ${OPENSSL_CFLAGS} -I../include
 
 pkce_SOURCES = main.cpp
 pkce_LDADD = libpkce.la ${OPENSSL_LIBS} ${SOCKET_LIBS}
-pkce_CXXFLAGS = -std=c++20 ${OPENSSL_CFLAGS}
+pkce_CXXFLAGS = -std=c++20 ${OPENSSL_CFLAGS} -I../include
 pkce_LDFLAGS = -static-libgcc -static-libstdc++

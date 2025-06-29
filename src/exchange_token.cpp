@@ -1,5 +1,5 @@
-#include "exchange_token.hpp"
-#include "json.hpp"
+#include <libpkce/exchange_token.hpp>
+#include <libpkce/json.hpp>
 
 void dump_token_response(const TokenResponse &token_response)
 {

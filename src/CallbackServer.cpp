@@ -1,4 +1,4 @@
-#include "CallbackServer.hpp"
+#include <libpkce/CallbackServer.hpp>
 
 CallbackServer::CallbackServer(int port) : port(port)
 {

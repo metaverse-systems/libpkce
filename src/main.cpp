@@ -2,11 +2,11 @@
 #include <thread>
 #include <chrono>
 #include <fstream>
-#include "generate_code_verifier.hpp"
-#include "generate_code_challenge.hpp"
-#include "CallbackServer.hpp"
-#include "exchange_token.hpp"
-#include "json.hpp"
+#include <libpkce/generate_code_verifier.hpp>
+#include <libpkce/generate_code_challenge.hpp>
+#include <libpkce/CallbackServer.hpp>
+#include <libpkce/exchange_token.hpp>
+#include <libpkce/json.hpp>
 #include <regex>
 
 struct Config {
