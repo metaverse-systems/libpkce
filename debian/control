@@ -1,0 +1,47 @@
+Source: libpkce
+Section: libs
+Priority: optional
+Maintainer: Tim <tim@metaverse.systems>
+Build-Depends: debhelper-compat (= 13),
+               autotools-dev,
+               autoconf,
+               automake,
+               libtool,
+               pkg-config,
+               libssl-dev (>= 3.0.0)
+Standards-Version: 4.6.2
+Homepage: https://github.com/metaverse-systems/libpkce
+Vcs-Git: https://github.com/metaverse-systems/libpkce.git
+Vcs-Browser: https://github.com/metaverse-systems/libpkce
+
+Package: libpkce0
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}
+Description: C++ library for PKCE OAuth 2.0 authentication flow
+ libpkce provides a complete implementation of the OAuth 2.0 PKCE
+ (Proof Key for Code Exchange) flow, designed to be platform agnostic
+ and easy to integrate into C++ applications.
+ .
+ This package contains the shared library.
+
+Package: libpkce-dev
+Section: libdevel
+Architecture: any
+Depends: libpkce0 (= ${binary:Version}),
+         ${misc:Depends},
+         libssl-dev (>= 3.0.0)
+Description: Development files for libpkce
+ libpkce provides a complete implementation of the OAuth 2.0 PKCE
+ (Proof Key for Code Exchange) flow, designed to be platform agnostic
+ and easy to integrate into C++ applications.
+ .
+ This package contains the development files (headers and static library).
+
+Package: pkce-tools
+Section: utils
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}
+Description: Command-line tools for PKCE OAuth 2.0 operations
+ This package contains command-line utilities for performing PKCE
+ OAuth 2.0 operations, including code verifier generation, challenge
+ creation, and token exchange.

@@ -1,5 +1,5 @@
 AC_PREREQ([2.72])
-AC_INIT([libpkce], [0.1], [tim@metaverse.systems])
+AC_INIT([libpkce], [0.5], [tim@metaverse.systems])
 AC_CONFIG_HEADERS([config.h])
 AC_CANONICAL_HOST
 AC_PROG_CXX

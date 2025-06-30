@@ -1,4 +1,4 @@
-#include "generate_code_challenge.hpp"
+#include <libpkce/generate_code_challenge.hpp>
 #include <openssl/evp.h>
 #include <openssl/buffer.h>
 #include <openssl/sha.h>

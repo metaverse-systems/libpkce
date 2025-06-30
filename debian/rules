@@ -1,0 +1,19 @@
+#!/usr/bin/make -f
+
+export DEB_BUILD_MAINT_OPTIONS = hardening=+all
+export DEB_CPPFLAGS_MAINT_APPEND = -DNDEBUG
+export DEB_CXXFLAGS_MAINT_APPEND = -std=c++20
+
+%:
+	dh $@ --with autoreconf
+
+override_dh_auto_configure:
+	dh_autoreconf
+	dh_auto_configure
+
+override_dh_auto_clean:
+	dh_autoreconf_clean
+	dh_auto_clean
+
+override_dh_missing:
+	dh_missing --fail-missing

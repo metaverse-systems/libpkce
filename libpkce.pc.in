@@ -4,8 +4,8 @@ libdir=@libdir@
 includedir=@includedir@
  
 Name: @PACKAGE_NAME@
-Description: https://metaverse.systems
+Description: C++ library for PKCE OAuth 2.0 authentication flow
 Version: @PACKAGE_VERSION@
 Libs: -L${libdir} -llibpkce
 Cflags: -I${includedir}
-Requires:
+Requires: openssl

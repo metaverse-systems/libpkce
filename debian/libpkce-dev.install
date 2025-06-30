@@ -1,0 +1,4 @@
+usr/include/libpkce/*.hpp
+usr/lib/*/libpkce.so
+usr/lib/*/libpkce.a
+usr/lib/*/pkgconfig/libpkce.pc

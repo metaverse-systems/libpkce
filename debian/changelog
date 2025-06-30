@@ -1,0 +1,9 @@
+libpkce (0.5-1) unstable; urgency=medium
+
+  * Updated to version 0.5.
+  * Cross-platform C++ library for PKCE OAuth 2.0 authentication flow
+  * Supports secure code verifier and challenge generation
+  * Includes OAuth callback server and token exchange functionality
+  * Uses OpenSSL for cryptographic operations
+
+ -- Tim <tim@metaverse.systems>  Sun, 29 Jun 2025 01:42:00 +0000
