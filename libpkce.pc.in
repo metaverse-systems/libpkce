@@ -6,6 +6,6 @@ includedir=@includedir@
 Name: @PACKAGE_NAME@
 Description: C++ library for PKCE OAuth 2.0 authentication flow
 Version: @PACKAGE_VERSION@
-Libs: -L${libdir} -llibpkce
+Libs: -L${libdir} -lpkce
 Cflags: -I${includedir}
 Requires: openssl

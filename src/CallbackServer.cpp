@@ -54,8 +54,6 @@ void CallbackServer::start()
         // Store the code for retrieval
         auth_code = code;
         code_received = true;
-        
-        std::cout << "Authorization code received: " << code << std::endl;
     });
     
     std::cout << "Starting server on port " << port << "..." << std::endl;
