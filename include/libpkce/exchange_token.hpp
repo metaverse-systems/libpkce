@@ -19,3 +19,9 @@ bool exchange_token(const std::string &token_url,
                     const std::string &redirect_uri,
                     const std::string &code_verifier,
                     TokenResponse &token_response);
+
+bool refresh_token(const std::string &token_url,
+                   const std::string &client_id,
+                   const std::string &refresh_token,
+                   TokenResponse &token_response);
+                
