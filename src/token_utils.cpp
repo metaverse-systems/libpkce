@@ -4,6 +4,7 @@
 #include <libpkce/httplib.h>
 #include <libpkce/token_utils.hpp>
 #include <jwt-cpp/jwt.h>
+#include <jwt-cpp/traits/nlohmann-json/traits.h>
 
 std::string base64url_decode(const std::string &input)
 {
@@ -31,6 +32,17 @@ void dump_token(std::string token)
         }
     } catch (const std::exception& e) {
         std::cerr << "Error decoding JWT token: " << e.what() << std::endl;
+    }
+}
+
+nlohmann::json parse_jwt(const std::string &token)
+{
+    try {
+        auto decoded = jwt::decode<jwt::traits::nlohmann_json>(token);
+        return decoded.get_payload_json();
+    } catch (const std::exception& e) {
+        std::cerr << "Error parsing JWT token: " << e.what() << std::endl;
+        return nlohmann::json();
     }
 }
 
