@@ -1,16 +1,36 @@
+#define CPPHTTPLIB_OPENSSL_SUPPORT
 #include <libpkce/CallbackServer.hpp>
+#include "httplib.h"
+#include <iostream>
 
-CallbackServer::CallbackServer(int port) : port(port)
+struct CallbackServer::Impl
 {
-    svr.set_exception_handler([](const httplib::Request &req, httplib::Response &res, std::exception_ptr ep) {
-        res.status = 500;
-        res.set_content("Internal Server Error", "text/plain");
-    });
+    int port;
+    httplib::Server svr;
+    std::string auth_code;
+    bool code_received = false;
+    
+    Impl(int port) : port(port)
+    {
+        svr.set_exception_handler([](const httplib::Request &req, httplib::Response &res, std::exception_ptr ep) {
+            res.status = 500;
+            res.set_content("Internal Server Error", "text/plain");
+        });
+    }
+};
+
+CallbackServer::CallbackServer(int port) : pImpl(std::make_unique<Impl>(port))
+{
 }
+
+CallbackServer::~CallbackServer() = default;
+
+CallbackServer::CallbackServer(CallbackServer&&) noexcept = default;
+CallbackServer& CallbackServer::operator=(CallbackServer&&) noexcept = default;
 
 void CallbackServer::start()
 {
-    svr.Get("/", [this](const httplib::Request &req, httplib::Response &res)
+    pImpl->svr.Get("/", [this](const httplib::Request &req, httplib::Response &res)
     {
         std::string code = req.get_param_value("code");
         std::string error = req.get_param_value("error");
@@ -52,25 +72,25 @@ void CallbackServer::start()
         res.set_content(html, "text/html");
         
         // Store the code for retrieval
-        auth_code = code;
-        code_received = true;
+        pImpl->auth_code = code;
+        pImpl->code_received = true;
     });
     
-    std::cout << "Starting server on port " << port << "..." << std::endl;
-    svr.listen("localhost", port);
+    std::cout << "Starting server on port " << pImpl->port << "..." << std::endl;
+    pImpl->svr.listen("localhost", pImpl->port);
 }
 
 void CallbackServer::stop()
 {
-    svr.stop();
+    pImpl->svr.stop();
 }
 
 std::string CallbackServer::get_auth_code() const
 {
-    return auth_code;
+    return pImpl->auth_code;
 }
 
 bool CallbackServer::is_code_received() const
 {
-    return code_received;
+    return pImpl->code_received;
 }
