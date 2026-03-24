@@ -1,17 +1,20 @@
-#define CPPHTTPLIB_OPENSSL_SUPPORT
+#pragma once
+
+#include <memory>
 #include <string>
-#include "httplib.h"
 
 class CallbackServer
 {
   private:
-    int port;
-    httplib::Server svr;
-    std::string auth_code;
-    bool code_received = false;
-    
+    struct Impl;
+    std::unique_ptr<Impl> pImpl;
+
   public:
     CallbackServer(int port);
+    ~CallbackServer();
+    CallbackServer(CallbackServer&&) noexcept;
+    CallbackServer& operator=(CallbackServer&&) noexcept;
+
     void start();
     void stop();
     std::string get_auth_code() const;

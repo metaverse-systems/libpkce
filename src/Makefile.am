@@ -11,11 +11,16 @@ libpkceinclude_HEADERS = ../include/libpkce/generate_code_verifier.hpp \
     ../include/libpkce/json.hpp \
     ../include/libpkce/token_utils.hpp
 
+# Install httplib.h at top-level include (used by exchange_token.hpp)
+httplibincludedir = $(includedir)
+httplibinclude_HEADERS = ../include/libpkce/httplib.h
+
 libpkce_la_SOURCES = generate_code_verifier.cpp generate_code_challenge.cpp CallbackServer.cpp exchange_token.cpp token_utils.cpp
 libpkce_la_LIBADD = ${OPENSSL_LIBS} ${SOCKET_LIBS}
-libpkce_la_CXXFLAGS = -std=c++20 ${OPENSSL_CFLAGS} -I../include
+libpkce_la_LDFLAGS = -no-undefined
+libpkce_la_CXXFLAGS = -std=c++20 -I../include ${OPENSSL_CFLAGS}
 
 pkce_SOURCES = main.cpp
 pkce_LDADD = libpkce.la ${OPENSSL_LIBS} ${SOCKET_LIBS}
-pkce_CXXFLAGS = -std=c++20 ${OPENSSL_CFLAGS} -I../include
+pkce_CXXFLAGS = -std=c++20 -I../include ${OPENSSL_CFLAGS}
 pkce_LDFLAGS = -static-libgcc -static-libstdc++

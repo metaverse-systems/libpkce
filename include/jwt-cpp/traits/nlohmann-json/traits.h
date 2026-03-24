@@ -2,7 +2,7 @@
 #define JWT_CPP_NLOHMANN_JSON_TRAITS_H
 
 #include "jwt-cpp/jwt.h"
-#include "nlohmann/json.hpp"
+#include "../../../libpkce/json.hpp"
 
 namespace jwt {
 	/**

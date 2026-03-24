@@ -42,6 +42,15 @@ int main(int argc, char *argv[])
     std::cout << "========================" << std::endl;
     std::cout << "Config file: " << argv[1] << std::endl;
     std::cout << std::endl;
+
+    // Start server in a separate thread BEFORE opening the browser
+    std::thread server_thread([&svr]() {
+        svr.start();
+    });
+
+    // Give the server a moment to bind
+    std::this_thread::sleep_for(std::chrono::milliseconds(500));
+
     std::cout << "Opening login URL:" << std::endl;
     std::cout << config.login_url << std::endl;
     std::cout << std::endl;
@@ -62,11 +71,6 @@ int main(int argc, char *argv[])
         command = "xdg-open \"" + config.login_url + "\"";
     #endif
     std::system(command.c_str());
-    
-    // Start server in a separate thread
-    std::thread server_thread([&svr]() {
-        svr.start();
-    });
     
     std::cout << "Waiting for authentication callback..." << std::endl;
     
