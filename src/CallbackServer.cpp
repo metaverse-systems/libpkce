@@ -1,9 +1,14 @@
 // Minimal raw-socket HTTP callback server.
 // Replaces cpp-httplib which relies on WSAPoll/WSAAccept — both broken under Wine.
 // This server only needs to accept ONE HTTP GET with an OAuth2 authorization code.
+//
+// listen() is synchronous (create, bind, listen) and reports a fixed,
+// credential-free reason on failure; serve() is the accept loop. The listener
+// binds 127.0.0.1 only: on Windows the exclusive address use keeps another
+// process from sharing the port, on POSIX SO_REUSEADDR avoids TIME_WAIT
+// failures on a quick retry.
 
 #include <libpkce/CallbackServer.hpp>
-#include <iostream>
 #include <sstream>
 #include <string>
 #include <cstring>
@@ -20,6 +25,7 @@
   #include <netinet/in.h>
   #include <arpa/inet.h>
   #include <unistd.h>
+  #include <cerrno>
   typedef int socket_t;
   #define CLOSE_SOCKET(s) ::close(s)
   static constexpr socket_t INVALID_SOCK = -1;
@@ -50,6 +56,24 @@ static std::string extract_request_path(const std::string &raw)
     return raw.substr(start, end - start);
 }
 
+// The fixed failure phrases, chosen from the failing step and the errno class.
+// They never carry request data or a port number.
+static const char *const kCouldNotCreateSocket = "could not create socket";
+static const char *const kAddressInUse = "address already in use";
+static const char *const kPermissionDenied = "permission denied";
+
+static std::string classify_bind_error(int err)
+{
+#ifdef _WIN32
+    if (err == WSAEADDRINUSE) return kAddressInUse;
+    if (err == WSAEACCES) return kPermissionDenied;
+#else
+    if (err == EADDRINUSE) return kAddressInUse;
+    if (err == EACCES) return kPermissionDenied;
+#endif
+    return kCouldNotCreateSocket;
+}
+
 // ── Impl ─────────────────────────────────────────────────────────────────────
 
 struct CallbackServer::Impl
@@ -57,6 +81,8 @@ struct CallbackServer::Impl
     int port;
     std::string auth_code;
     std::atomic<bool> code_received{false};
+    std::atomic<bool> error_received{false};
+    std::string failure_reason;
     socket_t listen_sock = INVALID_SOCK;
     std::atomic<bool> should_stop{false};
 
@@ -131,41 +157,71 @@ CallbackServer::~CallbackServer() = default;
 CallbackServer::CallbackServer(CallbackServer&&) noexcept = default;
 CallbackServer& CallbackServer::operator=(CallbackServer&&) noexcept = default;
 
-void CallbackServer::start()
+bool CallbackServer::listen() noexcept
 {
-    // ── create listen socket ────────────────────────────────────────────────
-    pImpl->listen_sock = ::socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
-    if (pImpl->listen_sock == INVALID_SOCK) {
-        std::cerr << "ERROR: Failed to create socket" << std::endl;
-        return;
-    }
+    try
+    {
+        // ── create listen socket ────────────────────────────────────────────────
+        pImpl->listen_sock = ::socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+        if (pImpl->listen_sock == INVALID_SOCK) {
+            pImpl->failure_reason = kCouldNotCreateSocket;
+            return false;
+        }
 
-    // Allow port reuse so restarts don't fail with "address in use"
-    int opt = 1;
+        int opt = 1;
 #ifdef _WIN32
-    ::setsockopt(pImpl->listen_sock, SOL_SOCKET, SO_REUSEADDR,
-                 reinterpret_cast<const char*>(&opt), sizeof(opt));
+        // Exclusive address use: a second process cannot bind the same port
+        // (SO_REUSEADDR would let it receive this login).
+        ::setsockopt(pImpl->listen_sock, SOL_SOCKET, SO_EXCLUSIVEADDRUSE,
+                     reinterpret_cast<const char*>(&opt), sizeof(opt));
 #else
-    ::setsockopt(pImpl->listen_sock, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt));
+        // SO_REUSEADDR on POSIX does not permit two listeners; it only avoids
+        // TIME_WAIT failures on a quick retry.
+        ::setsockopt(pImpl->listen_sock, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt));
 #endif
 
-    struct sockaddr_in addr{};
-    addr.sin_family      = AF_INET;
-    addr.sin_addr.s_addr = INADDR_ANY;   // bind to 0.0.0.0
-    addr.sin_port        = htons(static_cast<uint16_t>(pImpl->port));
+        struct sockaddr_in addr{};
+        addr.sin_family      = AF_INET;
+        addr.sin_addr.s_addr = htonl(INADDR_LOOPBACK); // 127.0.0.1 only
+        addr.sin_port        = htons(static_cast<uint16_t>(pImpl->port));
 
-    if (::bind(pImpl->listen_sock, reinterpret_cast<struct sockaddr*>(&addr),
-               sizeof(addr)) != 0) {
-        std::cerr << "ERROR: Failed to bind to port " << pImpl->port << std::endl;
+        if (::bind(pImpl->listen_sock, reinterpret_cast<struct sockaddr*>(&addr),
+                   sizeof(addr)) != 0) {
+            pImpl->failure_reason = classify_bind_error(
+#ifdef _WIN32
+                WSAGetLastError()
+#else
+                errno
+#endif
+            );
+            pImpl->close_listen();
+            return false;
+        }
+
+        if (::listen(pImpl->listen_sock, 1) != 0) {
+            pImpl->failure_reason = kCouldNotCreateSocket;
+            pImpl->close_listen();
+            return false;
+        }
+
+        return true;
+    }
+    catch (...)
+    {
         pImpl->close_listen();
+        return false;
+    }
+}
+
+void CallbackServer::serve()
+{
+    // A failed listen() has no socket: return at once.
+    if (pImpl->listen_sock == INVALID_SOCK) {
         return;
     }
-
-    if (::listen(pImpl->listen_sock, 1) != 0) {
-        std::cerr << "ERROR: listen() failed on port " << pImpl->port << std::endl;
-        pImpl->close_listen();
-        return;
-    }
+    // A local copy: stop() closes and invalidates the member from another
+    // thread; a stale fd just makes accept() fail and the loop ends.
+    const socket_t sock = pImpl->listen_sock;
 
     // ── accept loop — blocks on accept(), no WSAPoll needed ─────────────────
     while (!pImpl->should_stop) {
@@ -175,7 +231,7 @@ void CallbackServer::start()
 #else
         socklen_t client_len = sizeof(client_addr);
 #endif
-        socket_t client = ::accept(pImpl->listen_sock,
+        socket_t client = ::accept(sock,
                                    reinterpret_cast<struct sockaddr*>(&client_addr),
                                    &client_len);
         if (client == INVALID_SOCK) {
@@ -198,6 +254,9 @@ void CallbackServer::start()
         // Parse query parameters
         std::string error = get_query_param(path, "error");
         if (!error.empty()) {
+            // A return with error=: report the fixed flag (never the provider's
+            // text) and keep accepting — the callback is not complete.
+            pImpl->error_received = true;
             std::string desc = get_query_param(path, "error_description");
             std::string body = "Authentication failed: " + error +
                                (desc.empty() ? "" : " - " + desc);
@@ -208,6 +267,8 @@ void CallbackServer::start()
 
         std::string code = get_query_param(path, "code");
         if (code.empty()) {
+            // A return without a code: the same fixed flag, and the loop goes on.
+            pImpl->error_received = true;
             Impl::send_response(client, 200, "OK", "text/html",
                                 "No authorization code received");
             CLOSE_SOCKET(client);
@@ -221,6 +282,7 @@ void CallbackServer::start()
 
         pImpl->auth_code     = code;
         pImpl->code_received = true;
+        pImpl->error_received = false;
         break; // one successful callback is all we need
     }
 }
@@ -228,7 +290,21 @@ void CallbackServer::start()
 void CallbackServer::stop()
 {
     pImpl->should_stop = true;
-    pImpl->close_listen();     // unblocks the accept() call
+    // shutdown() reliably unblocks a thread parked in accept(); close() alone
+    // does not (the open file description stays alive under the blocked call).
+    if (pImpl->listen_sock != INVALID_SOCK) {
+#ifdef _WIN32
+        ::shutdown(pImpl->listen_sock, SD_BOTH);
+#else
+        ::shutdown(pImpl->listen_sock, SHUT_RDWR);
+#endif
+    }
+    pImpl->close_listen();
+}
+
+std::string CallbackServer::failure_reason() const
+{
+    return pImpl->failure_reason;
 }
 
 std::string CallbackServer::get_auth_code() const
@@ -239,4 +315,9 @@ std::string CallbackServer::get_auth_code() const
 bool CallbackServer::is_code_received() const
 {
     return pImpl->code_received;
+}
+
+bool CallbackServer::error_received() const
+{
+    return pImpl->error_received;
 }

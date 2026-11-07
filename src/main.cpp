@@ -43,13 +43,17 @@ int main(int argc, char *argv[])
     std::cout << "Config file: " << argv[1] << std::endl;
     std::cout << std::endl;
 
-    // Start server in a separate thread BEFORE opening the browser
-    std::thread server_thread([&svr]() {
-        svr.start();
-    });
+    // Bind synchronously before opening the browser: a bind failure is known
+    // at once, so no browser opens on a dead redirect.
+    if (!svr.listen()) {
+        std::cerr << "ERROR: " << svr.failure_reason() << std::endl;
+        return 1;
+    }
 
-    // Give the server a moment to bind
-    std::this_thread::sleep_for(std::chrono::milliseconds(500));
+    // Start the accept loop in a separate thread BEFORE opening the browser
+    std::thread server_thread([&svr]() {
+        svr.serve();
+    });
 
     std::cout << "Opening login URL:" << std::endl;
     std::cout << config.login_url << std::endl;
@@ -93,7 +97,11 @@ int main(int argc, char *argv[])
         std::cout << "Code Verifier (for token exchange): " << code_verifier << std::endl;
     } else {
         std::cout << std::endl;
-        std::cout << "Timeout: No authorization code received within " << config.timeout_seconds << " seconds." << std::endl;
+        if (svr.error_received()) {
+            std::cout << "The login was not completed: the provider returned an error or no code." << std::endl;
+        } else {
+            std::cout << "Timeout: No authorization code received within " << config.timeout_seconds << " seconds." << std::endl;
+        }
         return 1;
     }
 
