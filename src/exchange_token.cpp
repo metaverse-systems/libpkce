@@ -1,6 +1,38 @@
 #include <libpkce/exchange_token.hpp>
 #include <libpkce/json.hpp>
 
+#include <utility>
+
+namespace
+{
+    // Split the host part of a URL into the hostname and the port. When the
+    // host carries a port (host:port) it is returned; otherwise the default
+    // port for https (443) is. This lets the client reach a token endpoint on
+    // a non-default port (a loopback test server, or a local endpoint).
+    std::pair<std::string, int> ParseHostPort(const std::string &host)
+    {
+        size_t colon = host.rfind(':');
+        if (colon != std::string::npos)
+        {
+            std::string port_str = host.substr(colon + 1);
+            bool all_digits = !port_str.empty();
+            for (char c : port_str)
+            {
+                if (c < '0' || c > '9')
+                {
+                    all_digits = false;
+                    break;
+                }
+            }
+            if (all_digits)
+            {
+                return {host.substr(0, colon), std::stoi(port_str)};
+            }
+        }
+        return {host, 443};
+    }
+}
+
 void dump_token_response(const TokenResponse &token_response)
 {
     std::cout << "Access token: " << token_response.access_token << std::endl;
@@ -39,10 +71,15 @@ bool exchange_token(const std::string &token_url,
     
     // Use the path directly from the token_url (no need to append anything)
     std::string endpoint_path = path;
-    
-    httplib::SSLClient cli(hostname);
-    cli.set_connection_timeout(30, 0); // 30 seconds timeout
+
+    // The host may carry a port (host:port); the default is 443. The timeouts
+    // are bounded so a hanging endpoint ends the call within a bounded time
+    // (connection 10 s, read and write 30 s) instead of waiting indefinitely.
+    auto host_and_port = ParseHostPort(hostname);
+    httplib::SSLClient cli(host_and_port.first, host_and_port.second);
+    cli.set_connection_timeout(10, 0); // 10 seconds timeout
     cli.set_read_timeout(30, 0);
+    cli.set_write_timeout(30, 0);
     
     httplib::Params params;
     params.emplace("client_id", client_id);
@@ -111,10 +148,15 @@ bool refresh_token(const std::string &token_url,
     
     // Use the path directly from the token_url (no need to append anything)
     std::string endpoint_path = path;
-    
-    httplib::SSLClient cli(hostname);
-    cli.set_connection_timeout(30, 0); // 30 seconds timeout
+
+    // The host may carry a port (host:port); the default is 443. The timeouts
+    // are bounded so a hanging endpoint ends the call within a bounded time
+    // (connection 10 s, read and write 30 s) instead of waiting indefinitely.
+    auto host_and_port = ParseHostPort(hostname);
+    httplib::SSLClient cli(host_and_port.first, host_and_port.second);
+    cli.set_connection_timeout(10, 0); // 10 seconds timeout
     cli.set_read_timeout(30, 0);
+    cli.set_write_timeout(30, 0);
     
     httplib::Params params;
     params.emplace("client_id", client_id);
