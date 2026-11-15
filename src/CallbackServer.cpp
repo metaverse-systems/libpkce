@@ -13,6 +13,11 @@
 #include <string>
 #include <cstring>
 #include <atomic>
+#include <list>
+#include <memory>
+#include <mutex>
+#include <set>
+#include <thread>
 
 #ifdef _WIN32
   #include <winsock2.h>
@@ -85,8 +90,22 @@ struct CallbackServer::Impl
     std::string failure_reason;
     socket_t listen_sock = INVALID_SOCK;
     std::atomic<bool> should_stop{false};
+    int receive_timeout_ms;
 
-    explicit Impl(int p) : port(p)
+    static constexpr size_t kMaxLiveConnections = 8;
+
+    // One handler thread per accepted connection; `done` lets the accept loop reap it.
+    struct Handler
+    {
+        std::thread thread;
+        std::atomic<bool> done{false};
+    };
+
+    std::mutex lock;                  // guards listen_sock, live_connections, auth_code
+    std::set<socket_t> live_connections;
+    std::list<Handler> handlers;      // touched by the serving thread only
+
+    Impl(int p, int timeout_ms) : port(p), receive_timeout_ms(timeout_ms > 0 ? timeout_ms : 2000)
     {
 #ifdef _WIN32
         WSADATA wsa{};
@@ -104,10 +123,142 @@ struct CallbackServer::Impl
 
     void close_listen()
     {
+        std::lock_guard<std::mutex> guard(lock);
         if (listen_sock != INVALID_SOCK) {
+#ifdef _WIN32
+            ::shutdown(listen_sock, SD_BOTH);
+#else
+            ::shutdown(listen_sock, SHUT_RDWR);
+#endif
             CLOSE_SOCKET(listen_sock);
             listen_sock = INVALID_SOCK;
         }
+    }
+
+    // Unblocks every handler parked in recv(); each handler closes its own socket.
+    void shutdown_connections()
+    {
+        std::lock_guard<std::mutex> guard(lock);
+        for (socket_t c : live_connections) {
+#ifdef _WIN32
+            ::shutdown(c, SD_BOTH);
+#else
+            ::shutdown(c, SHUT_RDWR);
+#endif
+        }
+    }
+
+    void set_receive_timeout(socket_t client) const
+    {
+#ifdef _WIN32
+        DWORD tv = static_cast<DWORD>(receive_timeout_ms);
+        ::setsockopt(client, SOL_SOCKET, SO_RCVTIMEO, reinterpret_cast<const char*>(&tv), sizeof(tv));
+#else
+        struct timeval tv{};
+        tv.tv_sec = receive_timeout_ms / 1000;
+        tv.tv_usec = (receive_timeout_ms % 1000) * 1000;
+        ::setsockopt(client, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));
+#endif
+    }
+
+    // Reads one request (up to the blank line, 4 KiB at most). False on a timeout,
+    // a close or a stop with the request incomplete.
+    bool read_request(socket_t client, std::string &request) const
+    {
+        char buf[4096];
+        while (request.size() < sizeof(buf)) {
+            if (should_stop) return false;
+            int n = ::recv(client, buf, static_cast<int>(sizeof(buf) - request.size()), 0);
+            if (n <= 0) return false;
+            request.append(buf, static_cast<size_t>(n));
+            if (request.find("\r\n\r\n") != std::string::npos) return true;
+        }
+        return true;
+    }
+
+    // Answers one connection. Returns true when it carried the authorization code.
+    void handle(socket_t client)
+    {
+        set_receive_timeout(client);
+        {
+            std::lock_guard<std::mutex> guard(lock);
+            live_connections.insert(client);
+        }
+        handle_request(client);
+        {
+            std::lock_guard<std::mutex> guard(lock);
+            live_connections.erase(client);
+        }
+        CLOSE_SOCKET(client);
+    }
+
+    void handle_request(socket_t client)
+    {
+        std::string request;
+        if (!read_request(client, request)) {
+            return; // silent, partial or stopped: dropped
+        }
+        std::string path = extract_request_path(request);
+
+        std::string error = get_query_param(path, "error");
+        if (!error.empty()) {
+            // A return with error=: report the fixed flag (never the provider's
+            // text) and keep accepting; the callback is not complete.
+            error_received = true;
+            std::string desc = get_query_param(path, "error_description");
+            std::string body = "Authentication failed: " + error +
+                               (desc.empty() ? "" : " - " + desc);
+            send_response(client, 200, "OK", "text/html", body);
+            return;
+        }
+
+        std::string code = get_query_param(path, "code");
+        if (code.empty()) {
+            error_received = true;
+            send_response(client, 200, "OK", "text/html", "No authorization code received");
+            return;
+        }
+
+        send_response(client, 200, "OK", "text/html", success_html(code));
+        {
+            std::lock_guard<std::mutex> guard(lock);
+            if (code_received) return; // the first code wins
+            auth_code = code;
+            code_received = true;
+            error_received = false;
+        }
+        // One successful callback is all we need: end the accept loop.
+        should_stop = true;
+        std::lock_guard<std::mutex> guard(lock);
+        if (listen_sock != INVALID_SOCK) {
+#ifdef _WIN32
+            ::shutdown(listen_sock, SD_BOTH);
+#else
+            ::shutdown(listen_sock, SHUT_RDWR);
+#endif
+        }
+    }
+
+    void reap_finished()
+    {
+        for (auto it = handlers.begin(); it != handlers.end();) {
+            if (it->done) {
+                it->thread.join();
+                it = handlers.erase(it);
+            } else {
+                ++it;
+            }
+        }
+    }
+
+    void join_all()
+    {
+        should_stop = true;
+        shutdown_connections();
+        for (auto &h : handlers) {
+            if (h.thread.joinable()) h.thread.join();
+        }
+        handlers.clear();
     }
 
     // Build the HTML response body for a given auth code.
@@ -152,7 +303,8 @@ struct CallbackServer::Impl
 
 // ── public API ───────────────────────────────────────────────────────────────
 
-CallbackServer::CallbackServer(int port) : pImpl(std::make_unique<Impl>(port)) {}
+CallbackServer::CallbackServer(int port, int receive_timeout_ms)
+    : pImpl(std::make_unique<Impl>(port, receive_timeout_ms)) {}
 CallbackServer::~CallbackServer() = default;
 CallbackServer::CallbackServer(CallbackServer&&) noexcept = default;
 CallbackServer& CallbackServer::operator=(CallbackServer&&) noexcept = default;
@@ -198,7 +350,7 @@ bool CallbackServer::listen() noexcept
             return false;
         }
 
-        if (::listen(pImpl->listen_sock, 1) != 0) {
+        if (::listen(pImpl->listen_sock, 32) != 0) {
             pImpl->failure_reason = kCouldNotCreateSocket;
             pImpl->close_listen();
             return false;
@@ -215,15 +367,18 @@ bool CallbackServer::listen() noexcept
 
 void CallbackServer::serve()
 {
+    socket_t sock;
+    {
+        std::lock_guard<std::mutex> guard(pImpl->lock);
+        sock = pImpl->listen_sock;
+    }
     // A failed listen() has no socket: return at once.
-    if (pImpl->listen_sock == INVALID_SOCK) {
+    if (sock == INVALID_SOCK) {
         return;
     }
-    // A local copy: stop() closes and invalidates the member from another
-    // thread; a stale fd just makes accept() fail and the loop ends.
-    const socket_t sock = pImpl->listen_sock;
 
-    // ── accept loop — blocks on accept(), no WSAPoll needed ─────────────────
+    // Accept loop: each connection gets its own handler thread so a silent one
+    // cannot hold up the real redirect.
     while (!pImpl->should_stop) {
         struct sockaddr_in client_addr{};
 #ifdef _WIN32
@@ -235,56 +390,28 @@ void CallbackServer::serve()
                                    reinterpret_cast<struct sockaddr*>(&client_addr),
                                    &client_len);
         if (client == INVALID_SOCK) {
-            // accept() fails when stop() closes the listen socket — that's normal.
+            // accept() fails when stop() closes the listen socket: that's normal.
             break;
         }
-
-        // Read the HTTP request (4 KiB is more than enough for a redirect GET)
-        char buf[4096] = {};
-        int n = ::recv(client, buf, sizeof(buf) - 1, 0);
-        if (n <= 0) {
+        pImpl->reap_finished();
+        if (pImpl->should_stop || pImpl->handlers.size() >= Impl::kMaxLiveConnections) {
             CLOSE_SOCKET(client);
             continue;
         }
-        buf[n] = '\0';
-        std::string request(buf, static_cast<size_t>(n));
-
-        std::string path = extract_request_path(request);
-
-        // Parse query parameters
-        std::string error = get_query_param(path, "error");
-        if (!error.empty()) {
-            // A return with error=: report the fixed flag (never the provider's
-            // text) and keep accepting — the callback is not complete.
-            pImpl->error_received = true;
-            std::string desc = get_query_param(path, "error_description");
-            std::string body = "Authentication failed: " + error +
-                               (desc.empty() ? "" : " - " + desc);
-            Impl::send_response(client, 200, "OK", "text/html", body);
+        pImpl->handlers.emplace_back();
+        Impl::Handler &h = pImpl->handlers.back();
+        Impl *impl = pImpl.get();
+        try {
+            h.thread = std::thread([impl, client, &h]() {
+                impl->handle(client);
+                h.done = true;
+            });
+        } catch (...) {
+            pImpl->handlers.pop_back();
             CLOSE_SOCKET(client);
-            continue;
         }
-
-        std::string code = get_query_param(path, "code");
-        if (code.empty()) {
-            // A return without a code: the same fixed flag, and the loop goes on.
-            pImpl->error_received = true;
-            Impl::send_response(client, 200, "OK", "text/html",
-                                "No authorization code received");
-            CLOSE_SOCKET(client);
-            continue;
-        }
-
-        // ── success ────────────────────────────────────────────────────────
-        Impl::send_response(client, 200, "OK", "text/html",
-                            Impl::success_html(code));
-        CLOSE_SOCKET(client);
-
-        pImpl->auth_code     = code;
-        pImpl->code_received = true;
-        pImpl->error_received = false;
-        break; // one successful callback is all we need
     }
+    pImpl->join_all();
 }
 
 void CallbackServer::stop()
@@ -292,14 +419,8 @@ void CallbackServer::stop()
     pImpl->should_stop = true;
     // shutdown() reliably unblocks a thread parked in accept(); close() alone
     // does not (the open file description stays alive under the blocked call).
-    if (pImpl->listen_sock != INVALID_SOCK) {
-#ifdef _WIN32
-        ::shutdown(pImpl->listen_sock, SD_BOTH);
-#else
-        ::shutdown(pImpl->listen_sock, SHUT_RDWR);
-#endif
-    }
     pImpl->close_listen();
+    pImpl->shutdown_connections();
 }
 
 std::string CallbackServer::failure_reason() const
@@ -309,6 +430,7 @@ std::string CallbackServer::failure_reason() const
 
 std::string CallbackServer::get_auth_code() const
 {
+    std::lock_guard<std::mutex> guard(pImpl->lock);
     return pImpl->auth_code;
 }
 

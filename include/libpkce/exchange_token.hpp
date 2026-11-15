@@ -6,7 +6,7 @@ struct TokenResponse {
     std::string access_token;
     std::string id_token;
     std::string refresh_token;
-    int expires_in;
+    int expires_in = 0;
     std::string token_type;
     std::string scope;
 };

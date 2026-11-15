@@ -1,5 +1,5 @@
 AC_PREREQ([2.72])
-AC_INIT([libpkce], [0.5], [tim@metaverse.systems])
+AC_INIT([libpkce], [0.6], [tim@metaverse.systems])
 AC_CONFIG_HEADERS([config.h])
 AC_CANONICAL_HOST
 AC_PROG_CXX
@@ -25,6 +25,7 @@ AC_SUBST([SOCKET_LIBS])
 AC_CONFIG_MACRO_DIR([m4])
 
 AC_CONFIG_FILES([Makefile
-                 src/Makefile])
+                 src/Makefile
+                 tests/Makefile])
 AC_CONFIG_FILES([libpkce.pc])
 AC_OUTPUT

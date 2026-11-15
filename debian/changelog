@@ -1,3 +1,11 @@
+libpkce (0.6-1) unstable; urgency=medium
+
+  * Callback server: per-connection receive timeout, concurrent connections
+    (at most 8), stop() unblocks a serving thread parked in recv.
+  * TokenResponse members are value-initialised.
+
+ -- Tim <tim@metaverse.systems>  Sun, 15 Nov 2026 12:00:00 +0000
+
 libpkce (0.5-1) unstable; urgency=medium
 
   * Updated to version 0.5.

@@ -17,8 +17,8 @@ httplibinclude_HEADERS = ../include/libpkce/httplib.h
 
 libpkce_la_SOURCES = generate_code_verifier.cpp generate_code_challenge.cpp CallbackServer.cpp exchange_token.cpp token_utils.cpp
 libpkce_la_LIBADD = ${OPENSSL_LIBS} ${SOCKET_LIBS}
-libpkce_la_LDFLAGS = -no-undefined
-libpkce_la_CXXFLAGS = -std=c++20 -I../include ${OPENSSL_CFLAGS}
+libpkce_la_LDFLAGS = -no-undefined -pthread
+libpkce_la_CXXFLAGS = -std=c++20 -I../include ${OPENSSL_CFLAGS} -pthread
 
 pkce_SOURCES = main.cpp
 pkce_LDADD = libpkce.la ${OPENSSL_LIBS} ${SOCKET_LIBS}
