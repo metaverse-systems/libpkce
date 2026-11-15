@@ -93,3 +93,8 @@ src/pkce
 # OS files
 .DS_Store
 Thumbs.db
+
+# test build outputs
+tests/*_test
+tests/*.log
+tests/*.trs
